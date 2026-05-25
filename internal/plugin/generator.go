@@ -1,84 +1,66 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The SemRels Authors
+// SPDX-FileCopyrightText: 2026 The generator-changelog-md Authors
 
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
-
-	semrelv1 "github.com/SemRels/semrel-api/api/gen/v1"
 )
 
 const (
-	featuresSection      = "✨ Features"
-	bugFixesSection      = "🐛 Bug Fixes"
-	performanceSection   = "⚡ Performance"
-	documentationSection = "📚 Documentation"
-	otherChangesSection  = "🔄 Other Changes"
+	breakingChangesSection = "Breaking Changes"
+	featuresSection        = "Features"
+	bugFixesSection        = "Bug Fixes"
+	otherChangesSection    = "Other Changes"
 )
 
-var (
-	conventionalCommitPattern = regexp.MustCompile(`^(\w+)(\([\w-]+\))?(!)?:(.+)$`)
-	nowFunc                   = time.Now
-	sectionOrder              = []string{
-		featuresSection,
-		bugFixesSection,
-		performanceSection,
-		documentationSection,
-		otherChangesSection,
-	}
-)
+type ReleaseContext struct {
+	Version        string
+	CurrentVersion string
+	Branch         string
+	Commits        []string
+}
 
 type Generator struct {
-	semrelv1.UnimplementedChangelogGeneratorPluginServer
+	now func() time.Time
 }
+
+var conventionalHeaderPattern = regexp.MustCompile(`^(\w+)(\([\w-]+\))?(!)?:(.+)$`)
 
 func New() *Generator {
-	return &Generator{}
+	return &Generator{now: time.Now}
 }
 
-func (g *Generator) GenerateNotes(_ context.Context, req *semrelv1.GenerateNotesRequest) (*semrelv1.GenerateNotesResponse, error) {
-	if req == nil {
-		return &semrelv1.GenerateNotesResponse{}, nil
-	}
-
-	return &semrelv1.GenerateNotesResponse{Notes: renderNotes(req.GetCtx())}, nil
-}
-
-func renderNotes(ctx *semrelv1.ReleaseContext) string {
-	var builder strings.Builder
+func (g *Generator) Generate(ctx ReleaseContext) string {
 	sections := map[string][]string{}
-
-	if ctx != nil {
-		for _, commit := range ctx.GetCommits() {
-			section, line := renderCommit(commit)
-			sections[section] = append(sections[section], line)
+	for _, commit := range ctx.Commits {
+		section, line := classifyCommit(commit)
+		if section == "" || line == "" {
+			continue
 		}
-
-		if nextVersion := ctx.GetNextVersion(); nextVersion != nil {
-			fmt.Fprintf(&builder, "## v%d.%d.%d (%s)", nextVersion.GetMajor(), nextVersion.GetMinor(), nextVersion.GetPatch(), nowFunc().Format("2006-01-02"))
-		}
+		sections[section] = append(sections[section], line)
 	}
 
-	for _, section := range sectionOrder {
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "## %s (%s)", displayVersion(ctx.Version), g.currentDate().Format("2006-01-02"))
+
+	for _, section := range []string{breakingChangesSection, featuresSection, bugFixesSection, otherChangesSection} {
 		lines := sections[section]
 		if len(lines) == 0 {
 			continue
 		}
 
-		if builder.Len() > 0 {
-			builder.WriteString("\n\n")
-		}
-
-		fmt.Fprintf(&builder, "### %s\n", section)
+		builder.WriteString("\n\n### ")
+		builder.WriteString(section)
+		builder.WriteString("\n")
 		for index, line := range lines {
 			if index > 0 {
 				builder.WriteByte('\n')
 			}
+			builder.WriteString("- ")
 			builder.WriteString(line)
 		}
 	}
@@ -86,51 +68,51 @@ func renderNotes(ctx *semrelv1.ReleaseContext) string {
 	return builder.String()
 }
 
-func renderCommit(commit *semrelv1.Commit) (string, string) {
-	rawMessage := ""
-	sha := ""
-	if commit != nil {
-		rawMessage = commit.GetRawMessage()
-		sha = commit.GetSha()
+func (g *Generator) currentDate() time.Time {
+	if g != nil && g.now != nil {
+		return g.now()
 	}
-
-	header := firstLine(rawMessage)
-	matches := conventionalCommitPattern.FindStringSubmatch(header)
-	breaking := strings.Contains(rawMessage, "BREAKING CHANGE:")
-	section := otherChangesSection
-	lineText := header
-
-	if len(matches) > 0 {
-		commitType := matches[1]
-		scope := matches[2]
-		if matches[3] == "!" {
-			breaking = true
-		}
-
-		section = sectionForType(commitType)
-		lineText = fmt.Sprintf("%s%s: %s", commitType, scope, strings.TrimSpace(matches[4]))
-	}
-
-	if breaking {
-		lineText = "💥 **BREAKING CHANGE**: " + lineText
-	}
-
-	return section, fmt.Sprintf("- %s (%s)", lineText, shortSHA(sha))
+	return time.Now()
 }
 
-func sectionForType(commitType string) string {
-	switch commitType {
-	case "feat":
-		return featuresSection
-	case "fix", "revert":
-		return bugFixesSection
-	case "perf":
-		return performanceSection
-	case "docs":
-		return documentationSection
-	default:
-		return otherChangesSection
+func classifyCommit(commit string) (string, string) {
+	trimmed := strings.TrimSpace(commit)
+	if trimmed == "" {
+		return "", ""
 	}
+
+	if breaking, ok := breakingChangeText(trimmed); ok {
+		return breakingChangesSection, breaking
+	}
+
+	header := firstLine(trimmed)
+	matches := conventionalHeaderPattern.FindStringSubmatch(header)
+	if len(matches) == 0 {
+		return otherChangesSection, header
+	}
+
+	if matches[3] == "!" {
+		return breakingChangesSection, header
+	}
+
+	switch strings.ToLower(matches[1]) {
+	case "feat":
+		return featuresSection, header
+	case "fix", "perf", "revert":
+		return bugFixesSection, header
+	default:
+		return otherChangesSection, header
+	}
+}
+
+func breakingChangeText(message string) (string, bool) {
+	for _, line := range strings.Split(message, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "BREAKING CHANGE:") {
+			return trimmed, true
+		}
+	}
+	return "", false
 }
 
 func firstLine(message string) string {
@@ -138,15 +120,17 @@ func firstLine(message string) string {
 	if message == "" {
 		return ""
 	}
-
 	parts := strings.SplitN(message, "\n", 2)
 	return strings.TrimSpace(parts[0])
 }
 
-func shortSHA(sha string) string {
-	if len(sha) <= 7 {
-		return sha
+func displayVersion(version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return "Unreleased"
 	}
-
-	return sha[:7]
+	if strings.HasPrefix(strings.ToLower(version), "v") {
+		return version
+	}
+	return "v" + version
 }

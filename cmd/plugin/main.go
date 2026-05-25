@@ -1,22 +1,61 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The SemRels Authors
+// SPDX-FileCopyrightText: 2026 The generator-changelog-md Authors
 
 package main
 
 import (
-	generatorplugin "github.com/SemRels/generator-changelog-md/internal/plugin"
-	semrelapi "github.com/SemRels/semrel-api/plugin"
-	plugin "github.com/hashicorp/go-plugin"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	plugin "github.com/SemRels/generator-changelog-md/internal/plugin"
 )
 
 func main() {
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: semrelapi.HandshakeConfig,
-		Plugins: map[string]plugin.Plugin{
-			"generator": &semrelapi.ChangelogGeneratorGRPCPlugin{
-				Impl: generatorplugin.New(),
-			},
-		},
-		GRPCServer: plugin.DefaultGRPCServer,
-	})
+	os.Exit(run(os.Stdout, os.Stderr, os.Getenv))
+}
+
+func run(stdout, stderr io.Writer, getenv func(string) string) int {
+	ctx, err := releaseContextFromEnv(getenv)
+	if err != nil {
+		fmt.Fprintln(stderr, "generator-changelog-md:", err)
+		return 1
+	}
+
+	if _, err := io.WriteString(stdout, plugin.New().Generate(ctx)); err != nil {
+		fmt.Fprintln(stderr, "generator-changelog-md:", err)
+		return 1
+	}
+
+	return 0
+}
+
+func releaseContextFromEnv(getenv func(string) string) (plugin.ReleaseContext, error) {
+	raw := getenv("SEMREL_COMMITS")
+
+	var commits []string
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &commits); err != nil {
+			return plugin.ReleaseContext{}, fmt.Errorf("invalid SEMREL_COMMITS JSON: %w", err)
+		}
+	}
+
+	return plugin.ReleaseContext{
+		Version:        firstNonEmpty(getenv("SEMREL_VERSION"), getenv("SEMREL_TAG_NAME"), getenv("SEMREL_NEXT_VERSION")),
+		CurrentVersion: strings.TrimSpace(getenv("SEMREL_CURRENT_VERSION")),
+		Branch:         strings.TrimSpace(getenv("SEMREL_BRANCH")),
+		Commits:        commits,
+	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
