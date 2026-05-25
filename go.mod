@@ -3,7 +3,7 @@ module github.com/SemRels/generator-changelog-md
 go 1.26.3
 
 require (
-	github.com/SemRels/semrel-api v0.1.1
+	github.com/SemRels/semrel-api v0.1.2
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/stretchr/testify v1.10.0
 )
