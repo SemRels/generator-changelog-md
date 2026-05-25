@@ -1,47 +1,39 @@
 # generator-changelog-md
 
-Markdown changelog generator plugin for SemRel.
+`generator-changelog-md` is a SemRels changelog generator plugin implemented as a go-plugin gRPC binary.
 
-Generates release notes and changelog entries in Markdown format.
+It reads commits from the SemRels `ReleaseContext`, parses Conventional Commit headers, groups entries into Markdown sections, and renders release notes such as:
 
-## Documentation
+```markdown
+## v1.2.3 (2026-05-25)
 
-- SemRel docs (planned): <https://github.com/SemRels/semrel/tree/main/docs/plugins/generator-changelog-md>
-- Plugin template: <https://github.com/SemRels/plugin-template>
-- Registry: <https://registry.semrel.io>
+### ✨ Features
+- feat(api): add new login endpoint (abc1234)
 
-## Repository Layout
+### 🐛 Bug Fixes
+- fix: prevent crash on empty input (def5678)
+```
 
-~~~text
-cmd/plugin/              Plugin entry point
-internal/plugin/         Business logic scaffold
-internal/grpc/           gRPC transport scaffold
-proto/v1                 Symlink to the SemRel protobuf contract
-.github/workflows/       CI, release, and security automation
-~~~
+## Behavior
+
+- Supports Conventional Commits using the SemRels analyzer regex.
+- Groups `feat`, `fix`/`revert`, `perf`, and `docs` into dedicated sections.
+- Sends other commit types and non-conventional commits to `🔄 Other Changes`.
+- Marks breaking changes with `💥 **BREAKING CHANGE**:`.
+- Uses the next semantic version from `ReleaseContext` when available.
 
 ## Development
 
-~~~bash
-go build ./cmd/plugin
+```bash
+go build ./...
 go test ./...
-~~~
+```
 
-## Configuration Example
+## Repository Layout
 
-~~~yaml
-plugins:
-  - name: generator-changelog-md
-    type: generator
-    config:
-      output_file: CHANGELOG.md
-      include_compare_link: true
-      section_order:
-        - Features
-        - Fixes
-        - Documentation
-~~~
-
-## Status
-
-This repository is bootstrapped from SemRels/plugin-template and is ready for implementation.
+```text
+cmd/plugin/              go-plugin entry point
+internal/plugin/         changelog generation logic and tests
+internal/grpc/           reserved for future transport-related code
+proto/v1                 SemRels protobuf contract
+```
