@@ -1,32 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The plugin-template Authors
+// SPDX-FileCopyrightText: 2026 The go-semrel Authors
 
+// Package grpc provides the gRPC transport adapter for the changelog generator plugin.
 package grpc
 
 import (
 	"context"
 
-	semrelplugin "github.com/SemRels/generator-changelog-md/internal/plugin"
+	semrelv1 "github.com/SemRels/generator-changelog-md/internal/gen/v1"
+	"github.com/SemRels/generator-changelog-md/internal/plugin"
 )
 
-// HealthResponse is a lightweight stand-in until generated protobuf bindings are wired in.
-type HealthResponse struct {
-	Name string
+// ChangelogServer implements semrelv1.ChangelogGeneratorPluginServer by delegating
+// to the pure-Go generator in internal/plugin.
+type ChangelogServer struct {
+	semrelv1.UnimplementedChangelogGeneratorPluginServer
 }
 
-// ProviderServer adapts a provider implementation for the future gRPC transport layer.
-type ProviderServer struct {
-	provider semrelplugin.Provider
+// NewChangelogServer constructs a ChangelogServer ready to be registered with a gRPC server.
+func NewChangelogServer() *ChangelogServer {
+	return &ChangelogServer{}
 }
 
-func NewProviderServer(provider semrelplugin.Provider) *ProviderServer {
-	return &ProviderServer{provider: provider}
-}
-
-func (s *ProviderServer) Health(ctx context.Context) (*HealthResponse, error) {
-	if err := s.provider.HealthCheck(ctx); err != nil {
-		return nil, err
-	}
-
-	return &HealthResponse{Name: s.provider.Name()}, nil
+// GenerateNotes renders a Markdown changelog fragment for the release described by req.Ctx.
+func (s *ChangelogServer) GenerateNotes(
+	_ context.Context,
+	req *semrelv1.GenerateNotesRequest,
+) (*semrelv1.GenerateNotesResponse, error) {
+	notes := plugin.FormatMarkdown(req.GetCtx())
+	return &semrelv1.GenerateNotesResponse{Notes: notes}, nil
 }
