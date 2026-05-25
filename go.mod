@@ -1,4 +1,4 @@
-module github.com/SemRels/plugin-template
+module github.com/SemRels/generator-changelog-md
 
 go 1.24
 
