@@ -27,6 +27,9 @@ plugins:
 | --- | --- | --- | --- |
 | `SEMREL_PLUGIN_TEMPLATE` | Optional | Path to a custom Go template file. | Built-in template |
 | `SEMREL_PLUGIN_MAX_COMMITS` | Optional | Maximum number of commits to include. | 100 |
+| `SEMREL_PLUGIN_GROUP_BY_TYPE` | Optional | Group commits into sections by Conventional Commit type. Set to `false` for a flat chronological list. | `true` |
+| `SEMREL_PLUGIN_LINK_PRS` | Optional | Linkify `(#123)` and `#123` pull request references using `SEMREL_REPOSITORY_URL`. | `true` |
+| `SEMREL_PLUGIN_LINK_COMMITS` | Optional | Linkify 40-character commit SHAs when they appear in commit text and `SEMREL_REPOSITORY_URL` is set. | `true` |
 
 ## `SEMREL_*` release context used
 
@@ -37,10 +40,11 @@ plugins:
 | `SEMREL_NEXT_VERSION` | Next version computed by semrel for the release. |
 | `SEMREL_CURRENT_VERSION` | Current version before the new release is applied. |
 | `SEMREL_BRANCH` | Git branch associated with the current release run. |
+| `SEMREL_REPOSITORY_URL` | Repository URL used to build pull request and commit hyperlinks. |
 
 ## Example behavior
 
-The plugin renders a Markdown changelog from the release context and commit history, then prints the changelog so semrel can pass it to later plugins.
+The plugin renders a Markdown changelog from the release context and commit history, then prints the changelog so semrel can pass it to later plugins. By default it groups entries into Breaking Changes, Features, Performance Improvements, Bug Fixes, and Other Changes. Set `SEMREL_PLUGIN_GROUP_BY_TYPE=false` to emit a flat chronological list instead.
 
 ## License
 

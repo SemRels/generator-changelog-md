@@ -13,6 +13,7 @@ import (
 const (
 	breakingChangesSection = "Breaking Changes"
 	featuresSection        = "Features"
+	performanceSection     = "Performance Improvements"
 	bugFixesSection        = "Bug Fixes"
 	otherChangesSection    = "Other Changes"
 )
@@ -21,33 +22,68 @@ type ReleaseContext struct {
 	Version        string
 	CurrentVersion string
 	Branch         string
+	RepositoryURL  string
 	Commits        []string
+}
+
+type GenerateOptions struct {
+	GroupByType bool
+	LinkPRs     bool
+	LinkCommits bool
 }
 
 type Generator struct {
 	now func() time.Time
 }
 
-var conventionalHeaderPattern = regexp.MustCompile(`^(\w+)(\([\w-]+\))?(!)?:(.+)$`)
+var (
+	conventionalHeaderPattern = regexp.MustCompile(`^(\w+)(\([\w-]+\))?(!)?:(.+)$`)
+	pullRequestPattern        = regexp.MustCompile(`\(#(\d+)\)`)
+	barePullRequestPattern    = regexp.MustCompile(`(^|[^\[\w])#(\d+)`)
+	commitSHAPattern          = regexp.MustCompile(`\b[0-9a-f]{40}\b`)
+)
 
 func New() *Generator {
 	return &Generator{now: time.Now}
 }
 
-func (g *Generator) Generate(ctx ReleaseContext) string {
+func DefaultGenerateOptions() GenerateOptions {
+	return GenerateOptions{
+		GroupByType: true,
+		LinkPRs:     true,
+		LinkCommits: true,
+	}
+}
+
+func (g *Generator) Generate(ctx ReleaseContext, options ...GenerateOptions) string {
+	generateOptions := DefaultGenerateOptions()
+	if len(options) > 0 {
+		generateOptions = options[0]
+	}
+
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "## %s (%s)", displayVersion(ctx.Version), g.currentDate().Format("2006-01-02"))
+
+	if !generateOptions.GroupByType {
+		lines := g.commitLines(ctx, generateOptions)
+		if len(lines) == 0 {
+			return builder.String()
+		}
+		builder.WriteString("\n")
+		writeLines(&builder, lines)
+		return builder.String()
+	}
+
 	sections := map[string][]string{}
 	for _, commit := range ctx.Commits {
-		section, line := classifyCommit(commit)
+		section, line := classifyCommit(commit, ctx, generateOptions)
 		if section == "" || line == "" {
 			continue
 		}
 		sections[section] = append(sections[section], line)
 	}
 
-	var builder strings.Builder
-	fmt.Fprintf(&builder, "## %s (%s)", displayVersion(ctx.Version), g.currentDate().Format("2006-01-02"))
-
-	for _, section := range []string{breakingChangesSection, featuresSection, bugFixesSection, otherChangesSection} {
+	for _, section := range []string{breakingChangesSection, featuresSection, performanceSection, bugFixesSection, otherChangesSection} {
 		lines := sections[section]
 		if len(lines) == 0 {
 			continue
@@ -56,16 +92,32 @@ func (g *Generator) Generate(ctx ReleaseContext) string {
 		builder.WriteString("\n\n### ")
 		builder.WriteString(section)
 		builder.WriteString("\n")
-		for index, line := range lines {
-			if index > 0 {
-				builder.WriteByte('\n')
-			}
-			builder.WriteString("- ")
-			builder.WriteString(line)
-		}
+		writeLines(&builder, lines)
 	}
 
 	return builder.String()
+}
+
+func (g *Generator) commitLines(ctx ReleaseContext, options GenerateOptions) []string {
+	lines := make([]string, 0, len(ctx.Commits))
+	for _, commit := range ctx.Commits {
+		_, line := classifyCommit(commit, ctx, options)
+		if line == "" {
+			continue
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+func writeLines(builder *strings.Builder, lines []string) {
+	for index, line := range lines {
+		if index > 0 {
+			builder.WriteByte('\n')
+		}
+		builder.WriteString("- ")
+		builder.WriteString(line)
+	}
 }
 
 func (g *Generator) currentDate() time.Time {
@@ -75,18 +127,18 @@ func (g *Generator) currentDate() time.Time {
 	return time.Now()
 }
 
-func classifyCommit(commit string) (string, string) {
+func classifyCommit(commit string, ctx ReleaseContext, options GenerateOptions) (string, string) {
 	trimmed := strings.TrimSpace(commit)
 	if trimmed == "" {
 		return "", ""
 	}
 
 	if breaking, ok := breakingChangeText(trimmed); ok {
-		return breakingChangesSection, breaking
+		return breakingChangesSection, linkifyCommitText(breaking, ctx, options)
 	}
 
-	header := firstLine(trimmed)
-	matches := conventionalHeaderPattern.FindStringSubmatch(header)
+	header := linkifyCommitText(firstLine(trimmed), ctx, options)
+	matches := conventionalHeaderPattern.FindStringSubmatch(firstLine(trimmed))
 	if len(matches) == 0 {
 		return otherChangesSection, header
 	}
@@ -98,11 +150,37 @@ func classifyCommit(commit string) (string, string) {
 	switch strings.ToLower(matches[1]) {
 	case "feat":
 		return featuresSection, header
-	case "fix", "perf", "revert":
+	case "perf":
+		return performanceSection, header
+	case "fix", "revert":
 		return bugFixesSection, header
 	default:
 		return otherChangesSection, header
 	}
+}
+
+func linkifyCommitText(text string, ctx ReleaseContext, options GenerateOptions) string {
+	if text == "" {
+		return text
+	}
+
+	repositoryURL := strings.TrimRight(strings.TrimSpace(ctx.RepositoryURL), "/")
+	if repositoryURL == "" {
+		return text
+	}
+
+	if options.LinkPRs {
+		text = pullRequestPattern.ReplaceAllString(text, `([#$1](`+repositoryURL+`/pull/$1))`)
+		text = barePullRequestPattern.ReplaceAllString(text, `${1}[#$2](`+repositoryURL+`/pull/$2)`)
+	}
+
+	if options.LinkCommits {
+		text = commitSHAPattern.ReplaceAllStringFunc(text, func(sha string) string {
+			return fmt.Sprintf("[%s](%s/commit/%s)", sha, repositoryURL, sha)
+		})
+	}
+
+	return text
 }
 
 func breakingChangeText(message string) (string, bool) {

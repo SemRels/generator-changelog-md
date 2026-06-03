@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	plugin "github.com/SemRels/generator-changelog-md/internal/plugin"
@@ -24,7 +25,12 @@ func run(stdout, stderr io.Writer, getenv func(string) string) int {
 		return 1
 	}
 
-	if _, err := io.WriteString(stdout, plugin.New().Generate(ctx)); err != nil {
+	options := plugin.DefaultGenerateOptions()
+	options.GroupByType = envBool(getenv, "SEMREL_PLUGIN_GROUP_BY_TYPE", true)
+	options.LinkPRs = envBool(getenv, "SEMREL_PLUGIN_LINK_PRS", true)
+	options.LinkCommits = envBool(getenv, "SEMREL_PLUGIN_LINK_COMMITS", true)
+
+	if _, err := io.WriteString(stdout, plugin.New().Generate(ctx, options)); err != nil {
 		fmt.Fprintln(stderr, "generator-changelog-md:", err)
 		return 1
 	}
@@ -46,8 +52,23 @@ func releaseContextFromEnv(getenv func(string) string) (plugin.ReleaseContext, e
 		Version:        firstNonEmpty(getenv("SEMREL_VERSION"), getenv("SEMREL_TAG_NAME"), getenv("SEMREL_NEXT_VERSION")),
 		CurrentVersion: strings.TrimSpace(getenv("SEMREL_CURRENT_VERSION")),
 		Branch:         strings.TrimSpace(getenv("SEMREL_BRANCH")),
+		RepositoryURL:  strings.TrimSpace(getenv("SEMREL_REPOSITORY_URL")),
 		Commits:        commits,
 	}, nil
+}
+
+func envBool(getenv func(string) string, key string, defaultValue bool) bool {
+	value := strings.TrimSpace(getenv(key))
+	if value == "" {
+		return defaultValue
+	}
+
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return parsed
 }
 
 func firstNonEmpty(values ...string) string {
