@@ -29,6 +29,20 @@ func run(stdout, stderr io.Writer, getenv func(string) string) int {
 	options.GroupByType = envBool(getenv, "SEMREL_PLUGIN_GROUP_BY_TYPE", true)
 	options.LinkPRs = envBool(getenv, "SEMREL_PLUGIN_LINK_PRS", true)
 	options.LinkCommits = envBool(getenv, "SEMREL_PLUGIN_LINK_COMMITS", true)
+	options.NewContributors = envBool(getenv, "SEMREL_PLUGIN_NEW_CONTRIBUTORS", true)
+	options.MVP = envBool(getenv, "SEMREL_PLUGIN_MVP", false)
+	if mv := strings.TrimSpace(getenv("SEMREL_PLUGIN_MVP_METRIC")); mv != "" {
+		options.MVPMetric = mv
+	}
+
+	if raw := strings.TrimSpace(getenv("SEMREL_PLUGIN_CONTRIBUTORS_JSON")); raw != "" {
+		var contributors []plugin.Contributor
+		if err := json.Unmarshal([]byte(raw), &contributors); err != nil {
+			fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_CONTRIBUTORS_JSON:", err)
+			return 1
+		}
+		options.Contributors = contributors
+	}
 
 	if _, err := io.WriteString(stdout, plugin.New().Generate(ctx, options)); err != nil {
 		fmt.Fprintln(stderr, "generator-changelog-md:", err)

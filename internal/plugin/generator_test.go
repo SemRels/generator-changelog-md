@@ -125,3 +125,188 @@ func TestClassifyCommit(t *testing.T) {
 		})
 	}
 }
+
+func TestGeneratorNewContributors(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	ctx := ReleaseContext{
+		Version:       "1.4.0",
+		RepositoryURL: "https://github.com/SemRels/semrel",
+		Commits:       []string{"feat: add login (#42)"},
+	}
+
+	t.Run("new contributors section rendered when contributors provided", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.Contributors = []Contributor{
+			{Name: "Alice", Login: "alice", PR: 42},
+			{Name: "dependabot[bot]", Login: "dependabot[bot]", PR: 7},
+		}
+
+		output := generator.Generate(ctx, opts)
+
+		require.Contains(t, output, "### New Contributors")
+		require.Contains(t, output, "[@alice](https://github.com/alice)")
+		require.Contains(t, output, "[#42](https://github.com/SemRels/semrel/pull/42)")
+		require.Contains(t, output, "[@dependabot[bot]](https://github.com/dependabot[bot])")
+		require.Contains(t, output, "[#7](https://github.com/SemRels/semrel/pull/7)")
+	})
+
+	t.Run("new contributors section skipped when contributors empty", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.Contributors = nil
+
+		output := generator.Generate(ctx, opts)
+
+		require.NotContains(t, output, "New Contributors")
+	})
+
+	t.Run("new contributors section skipped when disabled", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.NewContributors = false
+		opts.Contributors = []Contributor{{Name: "Alice", Login: "alice"}}
+
+		output := generator.Generate(ctx, opts)
+
+		require.NotContains(t, output, "New Contributors")
+	})
+
+	t.Run("contributor without login uses plain name", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.Contributors = []Contributor{{Name: "Alice Smith"}}
+
+		output := generator.Generate(ctx, opts)
+
+		require.Contains(t, output, "Alice Smith made their first contribution")
+	})
+
+	t.Run("contributor without PR omits PR link", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.Contributors = []Contributor{{Name: "Bob", Login: "bob"}}
+
+		ctxNoPR := ReleaseContext{
+			Version:       "1.4.0",
+			RepositoryURL: "https://github.com/SemRels/semrel",
+			Commits:       []string{"feat: add a feature"},
+		}
+		output := generator.Generate(ctxNoPR, opts)
+
+		require.Contains(t, output, "made their first contribution\n")
+		require.NotContains(t, output, "bob) made their first contribution in")
+	})
+}
+
+func TestGeneratorMVP(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	ctx := ReleaseContext{
+		Version:       "1.4.0",
+		RepositoryURL: "https://github.com/SemRels/semrel",
+		Commits:       []string{"feat: add login (#42)", "fix: patch (#42)"},
+	}
+
+	t.Run("mvp section rendered when enabled and contributors present", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.MVP = true
+		opts.Contributors = []Contributor{
+			{Name: "Alice", Login: "alice", PR: 42},
+			{Name: "Bob", Login: "bob", PR: 99},
+		}
+
+		output := generator.Generate(ctx, opts)
+
+		require.Contains(t, output, "### 🏆 MVP")
+		require.Contains(t, output, "[@alice](https://github.com/alice)")
+	})
+
+	t.Run("mvp section not rendered when disabled", func(t *testing.T) {
+		t.Parallel()
+
+		opts := DefaultGenerateOptions()
+		opts.MVP = false
+		opts.Contributors = []Contributor{{Name: "Alice", Login: "alice", PR: 42}}
+
+		output := generator.Generate(ctx, opts)
+
+		require.NotContains(t, output, "🏆 MVP")
+	})
+
+	t.Run("mvp single contributor always wins", func(t *testing.T) {
+		t.Parallel()
+
+		mvp := pickMVP([]Contributor{{Name: "Solo", Login: "solo"}}, nil, "commits")
+		require.NotNil(t, mvp)
+		require.Equal(t, "solo", mvp.Login)
+	})
+
+	t.Run("mvp nil for empty contributors", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, pickMVP(nil, nil, "commits"))
+	})
+}
+
+func TestFormatContributorEntry(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		contributor   Contributor
+		repositoryURL string
+		want          string
+	}{
+		{
+			name:          "login with repo url produces linked mention",
+			contributor:   Contributor{Login: "alice"},
+			repositoryURL: "https://github.com/SemRels/semrel",
+			want:          "[@alice](https://github.com/alice)",
+		},
+		{
+			name:          "login without repo url produces bare mention",
+			contributor:   Contributor{Login: "alice"},
+			repositoryURL: "",
+			want:          "@alice",
+		},
+		{
+			name:          "no login falls back to name",
+			contributor:   Contributor{Name: "Alice Smith"},
+			repositoryURL: "https://github.com/SemRels/semrel",
+			want:          "Alice Smith",
+		},
+		{
+			name:          "empty contributor returns unknown",
+			contributor:   Contributor{},
+			repositoryURL: "",
+			want:          "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := formatContributorEntry(tt.contributor, tt.repositoryURL)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
