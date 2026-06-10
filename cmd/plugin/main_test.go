@@ -39,7 +39,7 @@ func TestRunWritesMarkdown(t *testing.T) {
 	code := run(&stdout, &stderr, getenv, rf, wf)
 
 	require.Equal(t, 0, code)
-	require.Empty(t, stderr.String())
+	require.Contains(t, stderr.String(), "plugin_schema_version=1")
 	require.Contains(t, stdout.String(), "## v1.3.0")
 	require.Contains(t, stdout.String(), "### Features")
 	require.Contains(t, stdout.String(), "[#123](https://github.com/SemRels/semrel/pull/123)")
@@ -67,7 +67,7 @@ func TestRunWritesFlatMarkdownWhenGroupingDisabled(t *testing.T) {
 	code := run(&stdout, &stderr, getenv, rf, wf)
 
 	require.Equal(t, 0, code)
-	require.Empty(t, stderr.String())
+	require.Contains(t, stderr.String(), "plugin_schema_version=1")
 	require.NotContains(t, stdout.String(), "### Features")
 	require.Contains(t, stdout.String(), "\n- feat: add search\n- fix: resolve crash")
 }
@@ -158,7 +158,7 @@ func TestRunWithCompressionWritesChangelog(t *testing.T) {
 	code := run(&stdout, &stderr, getenv, readFile, writeFile)
 
 	require.Equal(t, 0, code)
-	require.Empty(t, stderr.String())
+	require.Contains(t, stderr.String(), "plugin_schema_version=1")
 
 	// stdout contains only the new entry (for release notes).
 	require.Contains(t, stdout.String(), "## v1.3.0")
