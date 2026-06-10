@@ -14,11 +14,17 @@ import (
 	plugin "github.com/SemRels/generator-changelog-md/internal/plugin"
 )
 
+// pluginSchemaVersion is the schema version of this plugin's SEMREL_PLUGIN_* env-var contract.
+const pluginSchemaVersion = 1
+
 func main() {
 	os.Exit(run(os.Stdout, os.Stderr, os.Getenv, os.ReadFile, os.WriteFile))
 }
 
 func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(string) ([]byte, error), writeFile func(string, []byte, os.FileMode) error) int {
+	// Emit schema version so semrel core can detect config contract mismatches.
+	fmt.Fprintf(stderr, "plugin_schema_version=%d\n", pluginSchemaVersion)
+
 	ctx, err := releaseContextFromEnv(getenv)
 	if err != nil {
 		fmt.Fprintln(stderr, "generator-changelog-md:", err)
