@@ -15,10 +15,10 @@ import (
 )
 
 func main() {
-	os.Exit(run(os.Stdout, os.Stderr, os.Getenv))
+	os.Exit(run(os.Stdout, os.Stderr, os.Getenv, os.ReadFile, os.WriteFile))
 }
 
-func run(stdout, stderr io.Writer, getenv func(string) string) int {
+func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(string) ([]byte, error), writeFile func(string, []byte, os.FileMode) error) int {
 	ctx, err := releaseContextFromEnv(getenv)
 	if err != nil {
 		fmt.Fprintln(stderr, "generator-changelog-md:", err)
@@ -44,7 +44,53 @@ func run(stdout, stderr io.Writer, getenv func(string) string) int {
 		options.Contributors = contributors
 	}
 
-	if _, err := io.WriteString(stdout, plugin.New().Generate(ctx, options)); err != nil {
+	newEntry := plugin.New().Generate(ctx, options)
+
+	// Compression / file management.
+	keepReleases := envInt(getenv, "SEMREL_PLUGIN_KEEP_RELEASES", 0)
+	changelogFile := firstNonEmpty(getenv("SEMREL_PLUGIN_CHANGELOG_FILE"), "CHANGELOG.md")
+	dryRun := envBool(getenv, "SEMREL_DRY_RUN", false) || envBool(getenv, "SEMREL_PLUGIN_DRY_RUN", false)
+
+	if keepReleases > 0 {
+		compressOpts := plugin.CompressOptions{
+			KeepReleases: keepReleases,
+			ArchiveLink:  firstNonEmpty(getenv("SEMREL_PLUGIN_ARCHIVE_LINK"), "release_url"),
+			ChangelogDir: firstNonEmpty(getenv("SEMREL_PLUGIN_CHANGELOG_DIR"), "changelogs/"),
+			ReleaseURL:   strings.TrimSpace(getenv("SEMREL_RELEASE_URL")),
+			DryRun:       dryRun,
+		}
+
+		// Read existing changelog (ignore error if file does not exist yet).
+		existingContent := ""
+		if raw, readErr := readFile(changelogFile); readErr == nil {
+			existingContent = string(raw)
+		}
+
+		updated, archived := plugin.CompressChangelog(existingContent, newEntry, compressOpts)
+
+		if dryRun {
+			fmt.Fprintf(stderr, "generator-changelog-md: dry-run: would write %s with %d release(s) expanded, %d archived\n",
+				changelogFile, keepReleases, len(archived))
+		} else {
+			// Write per-release archive files when ArchiveLink includes "file".
+			if compressOpts.ArchiveLink == "file" || compressOpts.ArchiveLink == "both" {
+				for _, r := range archived {
+					filename := plugin.ArchiveFilename(r, compressOpts.ChangelogDir)
+					content := plugin.ArchiveFileContent(r)
+					if err := writeFile(filename, []byte(content), 0o644); err != nil {
+						fmt.Fprintf(stderr, "generator-changelog-md: warning: could not write archive file %s: %v\n", filename, err)
+					}
+				}
+			}
+
+			if err := writeFile(changelogFile, []byte(updated+"\n"), 0o644); err != nil {
+				fmt.Fprintln(stderr, "generator-changelog-md: could not write changelog file:", err)
+				return 1
+			}
+		}
+	}
+
+	if _, err := io.WriteString(stdout, newEntry); err != nil {
 		fmt.Fprintln(stderr, "generator-changelog-md:", err)
 		return 1
 	}
@@ -82,6 +128,18 @@ func envBool(getenv func(string) string, key string, defaultValue bool) bool {
 		return defaultValue
 	}
 
+	return parsed
+}
+
+func envInt(getenv func(string) string, key string, defaultValue int) int {
+	value := strings.TrimSpace(getenv(key))
+	if value == "" {
+		return defaultValue
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
 	return parsed
 }
 

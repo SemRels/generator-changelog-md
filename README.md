@@ -33,7 +33,10 @@ plugins:
 | `SEMREL_PLUGIN_NEW_CONTRIBUTORS` | Optional | Append a **New Contributors** section when `SEMREL_PLUGIN_CONTRIBUTORS_JSON` is provided. | `true` |
 | `SEMREL_PLUGIN_CONTRIBUTORS_JSON` | Optional | JSON array of first-time contributors for this release (see format below). When omitted the section is silently skipped. | — |
 | `SEMREL_PLUGIN_MVP` | Optional | Append a **🏆 MVP** section highlighting the most active contributor. Requires `SEMREL_PLUGIN_NEW_CONTRIBUTORS=true` and a non-empty contributors list. | `false` |
-| `SEMREL_PLUGIN_MVP_METRIC` | Optional | How to rank contributors for MVP. `commits` counts commit references; `impact` weights breaking/feat commits more. | `commits` |
+| `SEMREL_PLUGIN_KEEP_RELEASES` | Optional | Number of releases to keep fully expanded in `CHANGELOG.md`. Older entries are summarised in a **Previous Releases** table or separate archive files. `0` disables compression (default — fully backward compatible). | `0` |
+| `SEMREL_PLUGIN_ARCHIVE_LINK` | Optional | How to represent archived releases. `release_url` — append a `## Previous Releases` table with links. `file` — write each archived entry to `changelogs/vX.Y.Z.md`. `both` — do both. | `release_url` |
+| `SEMREL_PLUGIN_CHANGELOG_DIR` | Optional | Directory for per-release archive files (used with `archive_link: file`). | `changelogs/` |
+| `SEMREL_PLUGIN_CHANGELOG_FILE` | Optional | Path to `CHANGELOG.md` that the plugin reads and updates when `SEMREL_PLUGIN_KEEP_RELEASES > 0`. | `CHANGELOG.md` |
 
 ## `SEMREL_*` release context used
 
@@ -73,9 +76,28 @@ The JSON format for `SEMREL_PLUGIN_CONTRIBUTORS_JSON`:
 
 Set `SEMREL_PLUGIN_NEW_CONTRIBUTORS=false` to suppress the section entirely.
 
-### MVP
+### Changelog compression
 
-Enable `SEMREL_PLUGIN_MVP=true` together with a non-empty `SEMREL_PLUGIN_CONTRIBUTORS_JSON` to append an MVP highlight after the New Contributors list:
+Set `SEMREL_PLUGIN_KEEP_RELEASES=3` to keep the last 3 releases fully expanded in `CHANGELOG.md`. Older entries are moved to a **Previous Releases** table (or to separate archive files):
+
+```
+## v1.5.0 (2026-06-01)   ← new entry, always shown
+...
+## v1.4.0 (2026-05-01)   ← kept (N-1 existing)
+...
+## v1.3.0 (2026-04-01)   ← kept
+
+## Previous Releases
+
+| Version | Date | Link |
+|---------|------|------|
+| v1.2.0  | 2026-03-01 | [Release](…) |
+| v1.1.0  | 2026-02-01 | [Release](…) |
+```
+
+Use `SEMREL_PLUGIN_ARCHIVE_LINK=file` to write each archived entry to `changelogs/vX.Y.Z.md` instead (or `both` to do both). `SEMREL_RELEASE_URL` (set by the provider plugin) is used to populate the Release links.
+
+The plugin's `stdout` always contains only the **new release entry** (for release notes passed to provider plugins). The full updated `CHANGELOG.md` is written directly to the file system when `SEMREL_PLUGIN_KEEP_RELEASES > 0`.
 
 ```
 ### 🏆 MVP
