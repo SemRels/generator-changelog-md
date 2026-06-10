@@ -23,7 +23,7 @@ func main() {
 
 func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(string) ([]byte, error), writeFile func(string, []byte, os.FileMode) error) int {
 	// Emit schema version so semrel core can detect config contract mismatches.
-	fmt.Fprintf(stderr, "plugin_schema_version=%d\n", pluginSchemaVersion)
+	_, _ = fmt.Fprintf(stderr, "plugin_schema_version=%d\n", pluginSchemaVersion)
 
 	ctx, err := releaseContextFromEnv(getenv)
 	if err != nil {
