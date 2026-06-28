@@ -35,6 +35,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 	options.GroupByType = envBool(getenv, "SEMREL_PLUGIN_GROUP_BY_TYPE", true)
 	options.LinkPRs = envBool(getenv, "SEMREL_PLUGIN_LINK_PRS", true)
 	options.LinkCommits = envBool(getenv, "SEMREL_PLUGIN_LINK_COMMITS", true)
+	options.Signature = envBool(getenv, "SEMREL_PLUGIN_SIGNATURE", false)
 	options.NewContributors = envBool(getenv, "SEMREL_PLUGIN_NEW_CONTRIBUTORS", true)
 	options.MVP = envBool(getenv, "SEMREL_PLUGIN_MVP", false)
 	if mv := strings.TrimSpace(getenv("SEMREL_PLUGIN_MVP_METRIC")); mv != "" {
