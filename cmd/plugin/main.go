@@ -38,6 +38,11 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 	options.Signature = envBool(getenv, "SEMREL_PLUGIN_SIGNATURE", false)
 	options.NewContributors = envBool(getenv, "SEMREL_PLUGIN_NEW_CONTRIBUTORS", true)
 	options.MVP = envBool(getenv, "SEMREL_PLUGIN_MVP", false)
+	options.AIDisclosure = envBool(getenv, "SEMREL_PLUGIN_AI_DISCLOSURE", false)
+	options.AIDisclosureSection = envBool(getenv, "SEMREL_PLUGIN_AI_DISCLOSURE_SECTION", false)
+	if badge := strings.TrimSpace(getenv("SEMREL_PLUGIN_AI_DISCLOSURE_BADGE")); badge != "" {
+		options.AIDisclosureBadge = badge
+	}
 	if mv := strings.TrimSpace(getenv("SEMREL_PLUGIN_MVP_METRIC")); mv != "" {
 		options.MVPMetric = mv
 	}

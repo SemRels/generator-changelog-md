@@ -10,6 +10,35 @@ import (
 	"time"
 )
 
+// aiTrailerPattern matches known AI co-author trailers in commit messages.
+var aiTrailerPatterns = []struct {
+	pattern *regexp.Regexp
+	label   string
+}{
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*copilot`),        "GitHub Copilot"},
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*github-copilot`), "GitHub Copilot"},
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*claude`),         "Claude (Anthropic)"},
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*chatgpt`),        "ChatGPT (OpenAI)"},
+	{regexp.MustCompile(`(?i)(?m)^ai-assisted:\s*true`),            "AI"},
+	{regexp.MustCompile(`(?i)(?m)^generated-by:`),                  "AI"},
+}
+
+// detectAIAuthors returns the deduplicated list of AI tool labels found in the
+// commit message trailers. Returns nil when none are detected.
+func detectAIAuthors(commitMsg string) []string {
+	seen := map[string]struct{}{}
+	var labels []string
+	for _, pat := range aiTrailerPatterns {
+		if pat.pattern.MatchString(commitMsg) {
+			if _, ok := seen[pat.label]; !ok {
+				seen[pat.label] = struct{}{}
+				labels = append(labels, pat.label)
+			}
+		}
+	}
+	return labels
+}
+
 const (
 	breakingChangesSection = "Breaking Changes"
 	featuresSection        = "Features"
@@ -57,6 +86,15 @@ type GenerateOptions struct {
 	// release. It is populated by the caller (e.g. from SEMREL_PLUGIN_CONTRIBUTORS_JSON).
 	// When empty the section is silently skipped regardless of NewContributors.
 	Contributors []Contributor
+	// AIDisclosure enables detection of AI co-author trailers and appends a badge
+	// to each AI-assisted commit line. Off by default (opt-in).
+	AIDisclosure bool
+	// AIDisclosureBadge is the badge appended to AI-assisted commit lines when
+	// AIDisclosure is true. Defaults to "🤖".
+	AIDisclosureBadge string
+	// AIDisclosureSection appends a collapsible "🤖 AI-Assisted Contributions"
+	// section that lists all AI-co-authored commits. Requires AIDisclosure=true.
+	AIDisclosureSection bool
 }
 
 type Generator struct {
@@ -76,13 +114,16 @@ func New() *Generator {
 
 func DefaultGenerateOptions() GenerateOptions {
 	return GenerateOptions{
-		GroupByType:     true,
-		LinkPRs:         true,
-		LinkCommits:     true,
-		Signature:       false,
-		NewContributors: true,
-		MVP:             false,
-		MVPMetric:       "commits",
+		GroupByType:         true,
+		LinkPRs:             true,
+		LinkCommits:         true,
+		Signature:           false,
+		NewContributors:     true,
+		MVP:                 false,
+		MVPMetric:           "commits",
+		AIDisclosure:        false,
+		AIDisclosureBadge:   "🤖",
+		AIDisclosureSection: false,
 	}
 }
 
@@ -106,10 +147,25 @@ func (g *Generator) Generate(ctx ReleaseContext, options ...GenerateOptions) str
 	}
 
 	sections := map[string][]string{}
+	type aiEntry struct{ header string; labels []string }
+	var aiEntries []aiEntry
+
 	for _, commit := range ctx.Commits {
 		section, line := classifyCommit(commit, ctx, generateOptions)
 		if section == "" || line == "" {
 			continue
+		}
+		if generateOptions.AIDisclosure {
+			if labels := detectAIAuthors(commit); len(labels) > 0 {
+				badge := generateOptions.AIDisclosureBadge
+				if badge == "" {
+					badge = "🤖"
+				}
+				line = line + " " + badge
+				if generateOptions.AIDisclosureSection {
+					aiEntries = append(aiEntries, aiEntry{firstLine(commit), labels})
+				}
+			}
 		}
 		sections[section] = append(sections[section], line)
 	}
@@ -146,6 +202,14 @@ func (g *Generator) Generate(ctx ReleaseContext, options ...GenerateOptions) str
 				fmt.Fprintf(&builder, "%s led the contributors this release.\n", formatContributorEntry(*mvp, ctx.RepositoryURL))
 			}
 		}
+	}
+
+	if generateOptions.AIDisclosure && generateOptions.AIDisclosureSection && len(aiEntries) > 0 {
+		builder.WriteString("\n\n<details>\n<summary>🤖 AI-Assisted Contributions</summary>\n\nThe following changes were co-authored with an AI assistant:\n\n")
+		for _, e := range aiEntries {
+			fmt.Fprintf(&builder, "- %s — Co-authored with **%s**\n", e.header, strings.Join(e.labels, ", "))
+		}
+		builder.WriteString("\n_Disclosed in accordance with project AI-usage policy (L-08 §8)._\n</details>")
 	}
 
 	if generateOptions.Signature {

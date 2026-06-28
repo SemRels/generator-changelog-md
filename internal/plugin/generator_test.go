@@ -328,3 +328,134 @@ func TestFormatContributorEntry(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectAIAuthors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		commit string
+		want   []string
+	}{
+		{
+			name:   "copilot co-author trailer",
+			commit: "feat: add thing\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+			want:   []string{"GitHub Copilot"},
+		},
+		{
+			name:   "claude co-author trailer",
+			commit: "fix: patch\n\nCo-authored-by: claude-code[bot] <0+claude@users.noreply.github.com>",
+			want:   []string{"Claude (Anthropic)"},
+		},
+		{
+			name:   "ai-assisted trailer",
+			commit: "chore: update deps\n\nai-assisted: true",
+			want:   []string{"AI"},
+		},
+		{
+			name:   "no AI trailer",
+			commit: "docs: update README\n\nCo-authored-by: Alice <alice@example.com>",
+			want:   nil,
+		},
+		{
+			name:   "deduplicated labels",
+			commit: "feat: add\n\nCo-authored-by: Copilot <a@b.com>\nCo-authored-by: GitHub-Copilot <c@d.com>",
+			want:   []string{"GitHub Copilot"},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := detectAIAuthors(tt.commit)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGeneratorAIDisclosureBadge(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	opts := DefaultGenerateOptions()
+	opts.AIDisclosure = true
+
+	output := generator.Generate(ReleaseContext{
+		Version: "1.3.0",
+		Commits: []string{
+			"feat: add multiarch Docker builds\n\nCo-authored-by: Copilot <x@y.com>",
+			"fix: ordinary fix",
+		},
+	}, opts)
+
+	require.Contains(t, output, "🤖")
+	require.NotContains(t, output, "AI-Assisted Contributions")
+}
+
+func TestGeneratorAIDisclosureSection(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	opts := DefaultGenerateOptions()
+	opts.AIDisclosure = true
+	opts.AIDisclosureSection = true
+
+	output := generator.Generate(ReleaseContext{
+		Version: "1.3.0",
+		Commits: []string{
+			"feat: add feature\n\nCo-authored-by: Copilot <x@y.com>",
+			"fix: plain fix",
+		},
+	}, opts)
+
+	require.Contains(t, output, "🤖 AI-Assisted Contributions")
+	require.Contains(t, output, "Co-authored with **GitHub Copilot**")
+	require.Contains(t, output, "L-08 §8")
+}
+
+func TestGeneratorAIDisclosureCustomBadge(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	opts := DefaultGenerateOptions()
+	opts.AIDisclosure = true
+	opts.AIDisclosureBadge = "[AI]"
+
+	output := generator.Generate(ReleaseContext{
+		Version: "1.3.0",
+		Commits: []string{
+			"feat: thing\n\nCo-authored-by: Copilot <x@y.com>",
+		},
+	}, opts)
+
+	require.Contains(t, output, "[AI]")
+	require.NotContains(t, output, "🤖")
+}
+
+func TestGeneratorAIDisclosureOffByDefault(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	output := generator.Generate(ReleaseContext{
+		Version: "1.3.0",
+		Commits: []string{
+			"feat: add feature\n\nCo-authored-by: Copilot <x@y.com>",
+		},
+	})
+
+	require.NotContains(t, output, "🤖")
+	require.NotContains(t, output, "AI-Assisted Contributions")
+}
