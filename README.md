@@ -1,5 +1,7 @@
 # generator-changelog-md
 
+[![Latest Release](https://img.shields.io/github/v/release/SemRels/generator-changelog-md?label=version\&color=blue)](https://github.com/SemRels/generator-changelog-md/releases/latest)
+
 Generates a Markdown changelog for the current release.
 
 This plugin is distributed as the standalone Go binary `semrel-plugin-generator-changelog-md`. Semrel executes the binary as a subprocess, provides plugin configuration through `SEMREL_PLUGIN_*` environment variables, provides release context through `SEMREL_*` environment variables, reads standard output, and treats exit code `0` as success and any non-zero exit code as failure. Install the binary in `~/.semrel/plugins/` or anywhere on your `$PATH`.
