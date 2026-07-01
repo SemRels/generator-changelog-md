@@ -1,6 +1,6 @@
 # generator-changelog-md
 
-[![Latest Release](https://img.shields.io/github/v/release/SemRels/generator-changelog-md?label=version\&color=blue)](https://github.com/SemRels/generator-changelog-md/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/SemRels/generator-changelog-md?label=version&color=blue)](https://github.com/SemRels/generator-changelog-md/releases/latest)
 
 Generates a Markdown changelog for the current release.
 
