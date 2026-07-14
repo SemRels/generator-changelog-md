@@ -116,6 +116,54 @@ func TestRunRejectsInvalidCommitJSON(t *testing.T) {
 	require.Contains(t, stderr.String(), "invalid SEMREL_COMMITS JSON")
 }
 
+func TestRunWithCustomSectionsJSON(t *testing.T) {
+	t.Parallel()
+
+	getenv := func(key string) string {
+		switch key {
+		case "SEMREL_VERSION":
+			return "1.3.0"
+		case "SEMREL_COMMITS":
+			return `["feat: add search", "docs: update README", "chore: tidy up"]`
+		case "SEMREL_PLUGIN_SECTIONS_JSON":
+			return `[{"type":"feat","section":"Highlights"},{"type":"docs","hidden":true}]`
+		}
+		return ""
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	rf, wf := noopFS()
+
+	code := run(&stdout, &stderr, getenv, rf, wf)
+
+	require.Equal(t, 0, code)
+	require.Contains(t, stdout.String(), "### Highlights")
+	require.Contains(t, stdout.String(), "feat: add search")
+	require.NotContains(t, stdout.String(), "update README")
+	require.Contains(t, stdout.String(), "### Other Changes")
+	require.Contains(t, stdout.String(), "chore: tidy up")
+}
+
+func TestRunRejectsInvalidSectionsJSON(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	rf, wf := noopFS()
+
+	code := run(&stdout, &stderr, func(key string) string {
+		if key == "SEMREL_PLUGIN_SECTIONS_JSON" {
+			return `[`
+		}
+		return ""
+	}, rf, wf)
+
+	require.Equal(t, 1, code)
+	require.Empty(t, stdout.String())
+	require.Contains(t, stderr.String(), "invalid SEMREL_PLUGIN_SECTIONS_JSON")
+}
+
 func TestReleaseContextFromEnvUsesVersionFallback(t *testing.T) {
 	t.Parallel()
 

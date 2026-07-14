@@ -41,6 +41,13 @@
       "default": "commits",
       "description": "Metric used to determine the MVP when SEMREL_PLUGIN_MVP=true."
     },
+    "SEMREL_PLUGIN_SECTIONS_JSON": {
+      "type": "string",
+      "description": "JSON array overriding the built-in feat/fix/perf→section mapping used to group changelog entries, similar to the 'presetConfig.types' option of @semantic-release/release-notes-generator. Each object has a required 'type' (conventional-commit type, e.g. 'feat'), an optional 'section' (custom heading; commits are grouped under the first matching rule's section, in declaration order) and an optional 'hidden' (bool, drops matching commits entirely). Types with no matching rule fall back to 'Other Changes'. BREAKING CHANGE commits and '!' markers always go to 'Breaking Changes'.",
+      "examples": [
+        "[{\"type\":\"feat\",\"section\":\"Features\"},{\"type\":\"fix\",\"section\":\"Bugfixes\"},{\"type\":\"deps\",\"section\":\"Dependencies\"},{\"type\":\"chore\",\"section\":\"Miscellaneous\"},{\"type\":\"docs\",\"hidden\":true},{\"type\":\"refactor\",\"hidden\":true}]"
+      ]
+    },
     "SEMREL_PLUGIN_CONTRIBUTORS_JSON": {
       "type": "string",
       "description": "JSON array of contributor objects for the New Contributors and MVP sections. Each object must have 'login' (string) and may have 'firstRelease' (bool), 'prCount' (int), 'reviewCount' (int), 'commitCount' (int).",
