@@ -33,6 +33,74 @@ func TestGeneratorGenerate(t *testing.T) {
 	require.Equal(t, "## v1.3.0 (2026-05-25)\n\n### Breaking Changes\n- refactor!: remove deprecated API\n- BREAKING CHANGE: API changed\n\n### Features\n- feat: add new feature ([#123](https://github.com/SemRels/semrel/pull/123))\n\n### Performance Improvements\n- perf: improve cache warmup ([#125](https://github.com/SemRels/semrel/pull/125))\n\n### Bug Fixes\n- fix: resolve issue with X ([#124](https://github.com/SemRels/semrel/pull/124))\n\n### Other Changes\n- docs: update README", output)
 }
 
+func TestGeneratorGenerateWithCustomSections(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	opts := DefaultGenerateOptions()
+	opts.NewContributors = false
+	opts.Sections = []SectionRule{
+		{Type: "feat", Section: "Features"},
+		{Type: "fix", Section: "Bugfixes"},
+		{Type: "deps", Section: "Dependencies"},
+		{Type: "chore", Section: "Miscellaneous"},
+		{Type: "docs", Hidden: true},
+	}
+
+	output := generator.Generate(ReleaseContext{
+		Version: "1.3.0",
+		Commits: []string{
+			"feat: add new feature",
+			"fix: resolve issue with X",
+			"deps: bump dependency",
+			"chore: tidy up",
+			"docs: update README",
+			"refactor: simplify internals",
+		},
+	}, opts)
+
+	require.Equal(t, "## v1.3.0 (2026-05-25)\n\n### Features\n- feat: add new feature\n\n### Bugfixes\n- fix: resolve issue with X\n\n### Dependencies\n- deps: bump dependency\n\n### Miscellaneous\n- chore: tidy up\n\n### Other Changes\n- refactor: simplify internals", output)
+}
+
+func TestGeneratorGenerateWithCustomSectionsKeepsBreakingChangesFirst(t *testing.T) {
+	t.Parallel()
+
+	generator := &Generator{now: func() time.Time {
+		return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	}}
+
+	opts := DefaultGenerateOptions()
+	opts.NewContributors = false
+	opts.Sections = []SectionRule{
+		{Type: "feat", Section: "Features"},
+	}
+
+	output := generator.Generate(ReleaseContext{
+		Version: "2.0.0",
+		Commits: []string{
+			"feat!: breaking change here",
+			"feat: add new feature",
+		},
+	}, opts)
+
+	require.Equal(t, "## v2.0.0 (2026-05-25)\n\n### Breaking Changes\n- feat!: breaking change here\n\n### Features\n- feat: add new feature", output)
+}
+
+func TestFindSectionRuleIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	rules := []SectionRule{{Type: "Feat", Section: "Features"}}
+	rule, ok := findSectionRule(rules, "feat")
+	require.True(t, ok)
+	require.Equal(t, "Features", rule.Section)
+
+	_, ok = findSectionRule(rules, "fix")
+	require.False(t, ok)
+}
+
 func TestGeneratorGenerateWithoutVersionUsesUnreleased(t *testing.T) {
 	t.Parallel()
 

@@ -56,6 +56,15 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 		options.Contributors = contributors
 	}
 
+	if raw := strings.TrimSpace(getenv("SEMREL_PLUGIN_SECTIONS_JSON")); raw != "" {
+		var sections []plugin.SectionRule
+		if err := json.Unmarshal([]byte(raw), &sections); err != nil {
+			fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_SECTIONS_JSON:", err)
+			return 1
+		}
+		options.Sections = sections
+	}
+
 	newEntry := plugin.New().Generate(ctx, options)
 
 	// Compression / file management.
