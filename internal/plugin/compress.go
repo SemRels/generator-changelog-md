@@ -144,7 +144,7 @@ link := ""
 if opts.ReleaseURL != "" {
 link = fmt.Sprintf("[Release](%s)", opts.ReleaseURL)
 }
-sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", r.Version, r.Date, link))
+_, _ = fmt.Fprintf(&sb, "| %s | %s | %s |\n", r.Version, r.Date, link)
 }
 }
 

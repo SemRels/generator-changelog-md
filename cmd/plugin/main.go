@@ -27,7 +27,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 
 	ctx, err := releaseContextFromEnv(getenv)
 	if err != nil {
-		fmt.Fprintln(stderr, "generator-changelog-md:", err)
+		_, _ = fmt.Fprintln(stderr, "generator-changelog-md:", err)
 		return 1
 	}
 
@@ -50,7 +50,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 	if raw := strings.TrimSpace(getenv("SEMREL_PLUGIN_CONTRIBUTORS_JSON")); raw != "" {
 		var contributors []plugin.Contributor
 		if err := json.Unmarshal([]byte(raw), &contributors); err != nil {
-			fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_CONTRIBUTORS_JSON:", err)
+			_, _ = fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_CONTRIBUTORS_JSON:", err)
 			return 1
 		}
 		options.Contributors = contributors
@@ -59,7 +59,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 	if raw := strings.TrimSpace(getenv("SEMREL_PLUGIN_SECTIONS_JSON")); raw != "" {
 		var sections []plugin.SectionRule
 		if err := json.Unmarshal([]byte(raw), &sections); err != nil {
-			fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_SECTIONS_JSON:", err)
+			_, _ = fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_SECTIONS_JSON:", err)
 			return 1
 		}
 		options.Sections = sections
@@ -90,7 +90,7 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 		updated, archived := plugin.CompressChangelog(existingContent, newEntry, compressOpts)
 
 		if dryRun {
-			fmt.Fprintf(stderr, "generator-changelog-md: dry-run: would write %s with %d release(s) expanded, %d archived\n",
+			_, _ = fmt.Fprintf(stderr, "generator-changelog-md: dry-run: would write %s with %d release(s) expanded, %d archived\n",
 				changelogFile, keepReleases, len(archived))
 		} else {
 			// Write per-release archive files when ArchiveLink includes "file".
@@ -99,20 +99,20 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 					filename := plugin.ArchiveFilename(r, compressOpts.ChangelogDir)
 					content := plugin.ArchiveFileContent(r)
 					if err := writeFile(filename, []byte(content), 0o644); err != nil {
-						fmt.Fprintf(stderr, "generator-changelog-md: warning: could not write archive file %s: %v\n", filename, err)
+						_, _ = fmt.Fprintf(stderr, "generator-changelog-md: warning: could not write archive file %s: %v\n", filename, err)
 					}
 				}
 			}
 
 			if err := writeFile(changelogFile, []byte(updated+"\n"), 0o644); err != nil {
-				fmt.Fprintln(stderr, "generator-changelog-md: could not write changelog file:", err)
+				_, _ = fmt.Fprintln(stderr, "generator-changelog-md: could not write changelog file:", err)
 				return 1
 			}
 		}
 	}
 
 	if _, err := io.WriteString(stdout, newEntry); err != nil {
-		fmt.Fprintln(stderr, "generator-changelog-md:", err)
+		_, _ = fmt.Fprintln(stderr, "generator-changelog-md:", err)
 		return 1
 	}
 
