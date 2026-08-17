@@ -414,12 +414,6 @@ jobs:
                 <<< "${image_config}" >/dev/null
             done
           }
-          echo "DEBUG AMD64_DIGEST=[${AMD64_DIGEST}]"
-          echo "DEBUG AMD64_IMAGE_DIGEST=[${AMD64_IMAGE_DIGEST}]"
-          echo "DEBUG ARM64_DIGEST=[${ARM64_DIGEST}]"
-          echo "DEBUG ARM64_IMAGE_DIGEST=[${ARM64_IMAGE_DIGEST}]"
-          echo "DEBUG SOURCE_SHA=[${SOURCE_SHA}]"
-          echo "DEBUG TAGS=[${TAGS}]"
           [[ "${AMD64_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${AMD64_IMAGE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${ARM64_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]
