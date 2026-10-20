@@ -4,6 +4,7 @@
   "title": "generator-changelog-md plugin configuration",
   "description": "Schema v1 for the generator-changelog-md semrel plugin. Configure via SEMREL_PLUGIN_* environment variables.",
   "type": "object",
+  "x-semrel-dry-run": true,
   "properties": {
     "SEMREL_PLUGIN_GROUP_BY_TYPE": {
       "type": "string",
