@@ -1,6 +1,6 @@
 # Code of Conduct
 
-generator-changelog-md is committed to providing a welcoming and harassment-free community.
+`generator-changelog-md` is committed to providing a welcoming and harassment-free community.
 
 ## Our Pledge
 
