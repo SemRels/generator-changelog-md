@@ -1,6 +1,10 @@
 # generator-changelog-md
 
 [![Latest Release](https://img.shields.io/github/v/release/SemRels/generator-changelog-md?label=version&color=blue)](https://github.com/SemRels/generator-changelog-md/releases/latest)
+[![CI](https://github.com/SemRels/generator-changelog-md/actions/workflows/ci.yml/badge.svg)](https://github.com/SemRels/generator-changelog-md/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/SemRels/generator-changelog-md)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SemRels/generator-changelog-md/badge)](https://scorecard.dev/viewer/?uri=github.com/SemRels/generator-changelog-md)
+[![REUSE status](https://api.reuse.software/badge/github.com/SemRels/generator-changelog-md)](https://api.reuse.software/info/github.com/SemRels/generator-changelog-md)
 
 Generates a Markdown changelog for the current release.
 
