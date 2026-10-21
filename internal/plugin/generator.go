@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2026 The generator-changelog-md Authors
+// SPDX-FileCopyrightText: 2026 The semrel Authors
 
 package plugin
 
@@ -15,12 +15,12 @@ var aiTrailerPatterns = []struct {
 	pattern *regexp.Regexp
 	label   string
 }{
-	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*copilot`),        "GitHub Copilot"},
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*copilot`), "GitHub Copilot"},
 	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*github-copilot`), "GitHub Copilot"},
-	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*claude`),         "Claude (Anthropic)"},
-	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*chatgpt`),        "ChatGPT (OpenAI)"},
-	{regexp.MustCompile(`(?i)(?m)^ai-assisted:\s*true`),            "AI"},
-	{regexp.MustCompile(`(?i)(?m)^generated-by:`),                  "AI"},
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*claude`), "Claude (Anthropic)"},
+	{regexp.MustCompile(`(?i)co-authored-by:[^\n]*chatgpt`), "ChatGPT (OpenAI)"},
+	{regexp.MustCompile(`(?i)(?m)^ai-assisted:\s*true`), "AI"},
+	{regexp.MustCompile(`(?i)(?m)^generated-by:`), "AI"},
 }
 
 // detectAIAuthors returns the deduplicated list of AI tool labels found in the
@@ -84,10 +84,10 @@ type Contributor struct {
 }
 
 type GenerateOptions struct {
-	GroupByType     bool
-	LinkPRs         bool
-	LinkCommits     bool
-	Signature       bool
+	GroupByType bool
+	LinkPRs     bool
+	LinkCommits bool
+	Signature   bool
 	// NewContributors controls whether a "New Contributors" section is appended.
 	// The section is only rendered when Contributors is non-empty.
 	NewContributors bool
@@ -169,7 +169,10 @@ func (g *Generator) Generate(ctx ReleaseContext, options ...GenerateOptions) str
 	}
 
 	sections := map[string][]string{}
-	type aiEntry struct{ header string; labels []string }
+	type aiEntry struct {
+		header string
+		labels []string
+	}
 	var aiEntries []aiEntry
 
 	for _, commit := range ctx.Commits {
