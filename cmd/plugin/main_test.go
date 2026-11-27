@@ -45,6 +45,65 @@ func TestRunWritesMarkdown(t *testing.T) {
 	require.Contains(t, stdout.String(), "[#123](https://github.com/SemRels/semrel/pull/123)")
 }
 
+func TestRunUsesSemrelContributorsForMVPAndNewContributorSections(t *testing.T) {
+	t.Parallel()
+
+	getenv := func(key string) string {
+		switch key {
+		case "SEMREL_VERSION":
+			return "1.3.0"
+		case "SEMREL_COMMITS":
+			return `["feat: improve release notes\n\nCo-authored-by: GitHub Copilot <copilot@github.com>"]`
+		case "SEMREL_CONTRIBUTORS":
+			return `[{"name":"Alice","email":"alice@example.com","commits":3,"firstContribution":true},{"name":"Bob","email":"bob@example.com","commits":1,"firstContribution":false}]`
+		case "SEMREL_PLUGIN_AI_DISCLOSURE", "SEMREL_PLUGIN_AI_DISCLOSURE_SECTION", "SEMREL_PLUGIN_MVP":
+			return "true"
+		}
+		return ""
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	rf, wf := noopFS()
+
+	code := run(&stdout, &stderr, getenv, rf, wf)
+
+	require.Equal(t, 0, code)
+	require.Contains(t, stdout.String(), "feat: improve release notes 🤖")
+	require.Contains(t, stdout.String(), "### New Contributors\n* Alice made their first contribution")
+	require.NotContains(t, stdout.String(), "Bob made their first contribution")
+	require.Contains(t, stdout.String(), "### 🏆 MVP\nAlice led the contributors this release.")
+	require.Contains(t, stdout.String(), "AI-Assisted Contributions")
+}
+
+func TestRunShowsMVPWhenThereAreNoNewContributors(t *testing.T) {
+	t.Parallel()
+
+	getenv := func(key string) string {
+		switch key {
+		case "SEMREL_VERSION":
+			return "1.3.0"
+		case "SEMREL_COMMITS":
+			return `["feat: improve release notes"]`
+		case "SEMREL_CONTRIBUTORS":
+			return `[{"name":"Alice","commits":3,"firstContribution":false},{"name":"Bob","commits":1,"firstContribution":false}]`
+		case "SEMREL_PLUGIN_MVP":
+			return "true"
+		}
+		return ""
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	rf, wf := noopFS()
+
+	code := run(&stdout, &stderr, getenv, rf, wf)
+
+	require.Equal(t, 0, code)
+	require.NotContains(t, stdout.String(), "### New Contributors")
+	require.Contains(t, stdout.String(), "### 🏆 MVP\nAlice led the contributors this release.")
+}
+
 func TestRunWritesFlatMarkdownWhenGroupingDisabled(t *testing.T) {
 	t.Parallel()
 

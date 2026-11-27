@@ -47,7 +47,27 @@ func run(stdout, stderr io.Writer, getenv func(string) string, readFile func(str
 		options.MVPMetric = mv
 	}
 
-	if raw := strings.TrimSpace(getenv("SEMREL_PLUGIN_CONTRIBUTORS_JSON")); raw != "" {
+	if raw := strings.TrimSpace(getenv("SEMREL_CONTRIBUTORS")); raw != "" {
+		var metadata []struct {
+			Name              string `json:"name"`
+			Email             string `json:"email"`
+			Commits           int    `json:"commits"`
+			FirstContribution bool   `json:"firstContribution"`
+		}
+		if err := json.Unmarshal([]byte(raw), &metadata); err != nil {
+			_, _ = fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_CONTRIBUTORS JSON:", err)
+			return 1
+		}
+		options.FilterFirstTimeContributors = true
+		for _, contributor := range metadata {
+			options.Contributors = append(options.Contributors, plugin.Contributor{
+				Name:        contributor.Name,
+				Email:       contributor.Email,
+				CommitCount: contributor.Commits,
+				FirstTime:   contributor.FirstContribution,
+			})
+		}
+	} else if raw := strings.TrimSpace(getenv("SEMREL_PLUGIN_CONTRIBUTORS_JSON")); raw != "" {
 		var contributors []plugin.Contributor
 		if err := json.Unmarshal([]byte(raw), &contributors); err != nil {
 			_, _ = fmt.Fprintln(stderr, "generator-changelog-md: invalid SEMREL_PLUGIN_CONTRIBUTORS_JSON:", err)
