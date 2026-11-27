@@ -58,13 +58,21 @@ Every option can be set as an entry under `args` in `.semrel.yaml`. semrel passe
 | `link_prs` | `SEMREL_PLUGIN_LINK_PRS` | Optional | Linkify `(#123)` and `#123` pull request references using `SEMREL_REPOSITORY_URL`. | `true` |
 | `link_commits` | `SEMREL_PLUGIN_LINK_COMMITS` | Optional | Linkify 40-character commit SHAs when they appear in commit text and `SEMREL_REPOSITORY_URL` is set. | `true` |
 | `signature` | `SEMREL_PLUGIN_SIGNATURE` | Optional | Append an opt-in footer line linking to `semrel.io` at the end of the generated changelog entry. | `false` |
-| `new_contributors` | `SEMREL_PLUGIN_NEW_CONTRIBUTORS` | Optional | Append a **New Contributors** section when `SEMREL_PLUGIN_CONTRIBUTORS_JSON` is provided. | `true` |
-| `contributors_json` | `SEMREL_PLUGIN_CONTRIBUTORS_JSON` | Optional | JSON array of first-time contributors for this release (see format below). When omitted the section is silently skipped. | — |
-| `mvp` | `SEMREL_PLUGIN_MVP` | Optional | Append a **🏆 MVP** section highlighting the most active contributor. Requires `SEMREL_PLUGIN_NEW_CONTRIBUTORS=true` and a non-empty contributors list. | `false` |
+| `ai_disclosure` | `SEMREL_PLUGIN_AI_DISCLOSURE` | Optional | Detect AI co-author trailers and append a badge to AI-assisted commit entries. | `false` |
+| `ai_disclosure_badge` | `SEMREL_PLUGIN_AI_DISCLOSURE_BADGE` | Optional | Badge appended to AI-assisted commit entries. | `🤖` |
+| `ai_disclosure_section` | `SEMREL_PLUGIN_AI_DISCLOSURE_SECTION` | Optional | Append a collapsible list of detected AI-assisted commits; requires AI disclosure. | `false` |
+| `new_contributors` | `SEMREL_PLUGIN_NEW_CONTRIBUTORS` | Optional | Append a **New Contributors** section from core metadata or `contributors_json`. | `true` |
+| `contributors_json` | `SEMREL_PLUGIN_CONTRIBUTORS_JSON` | Optional | Legacy JSON array of first-time contributors for standalone use (see format below). | — |
+| `mvp` | `SEMREL_PLUGIN_MVP` | Optional | Append a **🏆 MVP** section highlighting the most active contributor when contributor metadata is available. | `false` |
+| `mvp_metric` | `SEMREL_PLUGIN_MVP_METRIC` | Optional | Rank the MVP by commit count or impact. | `commits` |
 | `keep_releases` | `SEMREL_PLUGIN_KEEP_RELEASES` | Optional | Number of releases to keep fully expanded in `CHANGELOG.md`. Older entries are summarised in a **Previous Releases** table or separate archive files. `0` disables compression (default — fully backward compatible). | `0` |
 | `archive_link` | `SEMREL_PLUGIN_ARCHIVE_LINK` | Optional | How to represent archived releases. `release_url` — append a `## Previous Releases` table with links. `file` — write each archived entry to `changelogs/vX.Y.Z.md`. `both` — do both. | `release_url` |
 | `changelog_dir` | `SEMREL_PLUGIN_CHANGELOG_DIR` | Optional | Directory for per-release archive files (used with `archive_link: file`). | `changelogs/` |
 | `changelog_file` | `SEMREL_PLUGIN_CHANGELOG_FILE` | Optional | Path to `CHANGELOG.md` that the plugin reads and updates when `SEMREL_PLUGIN_KEEP_RELEASES > 0`. | `CHANGELOG.md` |
+
+semrel core provides `SEMREL_CONTRIBUTORS` automatically. First-contribution flags filter the New Contributors list, and commit counts drive MVP selection.
+
+`semrel config init` enables AI disclosure (badges and the collapsible contribution list) and MVP recognition for its default changelog generator. These options remain opt-in for standalone plugin use.
 
 ## `SEMREL_*` release context used
 
